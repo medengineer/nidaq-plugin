@@ -128,9 +128,11 @@ void EditorBackground::paint(Graphics& g)
 		g.setFont(10);
 		
 		g.drawText(String("DEVICE"), settingsOffsetX, 13, 100, 10, Justification::centredLeft);
-		g.drawText(String("SAMPLE RATE"), settingsOffsetX, 45, 100, 10, Justification::centredLeft);
-		g.drawText(String("AI VOLTAGE RANGE"), settingsOffsetX, 77, 100, 10, Justification::centredLeft);
-
+		if (nAI > 0)
+		{
+			g.drawText(String("SAMPLE RATE"), settingsOffsetX, 45, 100, 10, Justification::centredLeft);
+			g.drawText(String("AI VOLTAGE RANGE"), settingsOffsetX, 77, 100, 10, Justification::centredLeft);
+		}
 		/*
 		g.drawText(String("USAGE"), settingsOffsetX, 77, 100, 10, Justification::centredLeft);
 		g.setFont(8);
@@ -426,7 +428,11 @@ void NIDAQEditor::draw()
 	}
 	else
 	{
-		nAI = t->getNumActiveAnalogInputs();
+		if (t->digitalOnlyMode())
+			nAI = 0;
+		else
+			nAI = t->getNumActiveAnalogInputs();
+
 		nDI = t->getNumActiveDigitalInputs();
 	}
 
@@ -439,29 +445,34 @@ void NIDAQEditor::draw()
 
 	int xOffset = 0;
 
-	// Draw analog inputs 
-	for (int i = 0; i < nAI; i++)
+	if (!t->digitalOnlyMode())
 	{
 
-		int colIndex = i / aiChannelsPerColumn;
-		int rowIndex = i % aiChannelsPerColumn + 1;
-		xOffset = colIndex * 75 + 40;
-		int y_pos = 5 + rowIndex * 26;
+		// Draw analog inputs 
+		for (int i = 0; i < nAI; i++)
+		{
 
-		AIButton* a = new AIButton(i, thread);
-		a->setBounds(xOffset, y_pos, 15, 15);
-		a->addListener(this);
-		addAndMakeVisible(a);
-		aiButtons.add(a);
+			int colIndex = i / aiChannelsPerColumn;
+			int rowIndex = i % aiChannelsPerColumn + 1;
+			xOffset = colIndex * 75 + 40;
+			int y_pos = 5 + rowIndex * 26;
 
-		SOURCE_TYPE sourceType = thread->getSourceTypeForInput(i);
-		LOGD("Got source type for input ", i, ": ", sourceType);
+			AIButton* a = new AIButton(i, thread);
+			a->setBounds(xOffset, y_pos, 15, 15);
+			a->addListener(this);
+			addAndMakeVisible(a);
+			aiButtons.add(a);
 
-		SourceTypeButton* b = new SourceTypeButton(i, thread, sourceType);
-		b->setBounds(xOffset+17, y_pos-2, 27, 17);
-		b->addListener(this);
-		addAndMakeVisible(b);
-		sourceTypeButtons.add(b);
+			SOURCE_TYPE sourceType = thread->getSourceTypeForInput(i);
+			LOGD("Got source type for input ", i, ": ", sourceType);
+
+			SourceTypeButton* b = new SourceTypeButton(i, thread, sourceType);
+			b->setBounds(xOffset+17, y_pos-2, 27, 17);
+			b->addListener(this);
+			addAndMakeVisible(b);
+			sourceTypeButtons.add(b);
+
+		}
 
 	}
 
@@ -500,28 +511,31 @@ void NIDAQEditor::draw()
 	if (t->getNumAvailableDevices() == 1)	// disable device selection if only one device is available
 		deviceSelectBox->setEnabled(false);
 
-	sampleRateSelectBox = new ComboBox("SampleRateSelectBox");
-	sampleRateSelectBox->setBounds(xOffset, 70, 85, 20);
-	Array<NIDAQ::float64> sampleRates = t->getSampleRates();
-	for (int i = 0; i < sampleRates.size(); i++)
+	if (!t->digitalOnlyMode())
 	{
-		sampleRateSelectBox->addItem(String(sampleRates[i]) + " S/s", i + 1);
-	}
-	sampleRateSelectBox->setSelectedItemIndex(t->getSampleRateIndex(), false);
-	sampleRateSelectBox->addListener(this);
-	addAndMakeVisible(sampleRateSelectBox);
+		sampleRateSelectBox = new ComboBox("SampleRateSelectBox");
+		sampleRateSelectBox->setBounds(xOffset, 70, 85, 20);
+		Array<NIDAQ::float64> sampleRates = t->getSampleRates();
+		for (int i = 0; i < sampleRates.size(); i++)
+		{
+			sampleRateSelectBox->addItem(String(sampleRates[i]) + " S/s", i + 1);
+		}
+		sampleRateSelectBox->setSelectedItemIndex(t->getSampleRateIndex(), false);
+		sampleRateSelectBox->addListener(this);
+		addAndMakeVisible(sampleRateSelectBox);
 
-	voltageRangeSelectBox = new ComboBox("VoltageRangeSelectBox");
-	voltageRangeSelectBox->setBounds(xOffset, 101, 85, 20);
-	Array<SettingsRange> voltageRanges = t->getVoltageRanges();
-	for (int i = 0; i < voltageRanges.size(); i++)
-	{
-		String rangeString = String(voltageRanges[i].min) + " - " + String(voltageRanges[i].max) + " V";
-		voltageRangeSelectBox->addItem(rangeString, i + 1);
+		voltageRangeSelectBox = new ComboBox("VoltageRangeSelectBox");
+		voltageRangeSelectBox->setBounds(xOffset, 101, 85, 20);
+		Array<SettingsRange> voltageRanges = t->getVoltageRanges();
+		for (int i = 0; i < voltageRanges.size(); i++)
+		{
+			String rangeString = String(voltageRanges[i].min) + " - " + String(voltageRanges[i].max) + " V";
+			voltageRangeSelectBox->addItem(rangeString, i + 1);
+		}
+		voltageRangeSelectBox->setSelectedItemIndex(t->getVoltageRangeIndex(), false);
+		voltageRangeSelectBox->addListener(this);
+		addAndMakeVisible(voltageRangeSelectBox);
 	}
-	voltageRangeSelectBox->setSelectedItemIndex(t->getVoltageRangeIndex(), false);
-	voltageRangeSelectBox->addListener(this);
-	addAndMakeVisible(voltageRangeSelectBox);
 
 	fifoMonitor = new FifoMonitor(thread);
 	fifoMonitor->setBounds(xOffset + 2, 105, 70, 12);

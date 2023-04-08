@@ -216,6 +216,8 @@ public:
 
 	friend class NIDAQThread;
 
+	bool digitalOnlyMode;
+
 private:
 
 	/* Manages connected NIDAQ devices */

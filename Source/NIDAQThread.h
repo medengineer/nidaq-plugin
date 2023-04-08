@@ -149,6 +149,9 @@ public:
 	/** Returns the sample rate of the data source.*/
 	float getSampleRate();
 
+	/** Returns true if only digital channels are available. */
+	bool digitalOnlyMode() { return mNIDAQ->digitalOnlyMode; }; 
+
 	/** Responds to broadcast messages sent during acquisition */
 	void handleBroadcastMessage(String msg) override;
 

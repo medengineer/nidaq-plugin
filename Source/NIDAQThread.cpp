@@ -84,16 +84,19 @@ void NIDAQThread::updateSettings(OwnedArray<ContinuousChannel>* continuousChanne
 	OwnedArray<ConfigurationObject>* configurationObjects)
 {
 
+	float sampleRate = getSampleRate();
+	if (sampleRate == 0.0f) // digital-only device
+		sampleRate = 909.0f; //TODO:
+
 	if (sourceStreams.size() == 0) // initialize data streams
 	{
-
 		DataStream::Settings settings
 		{
 			getProductName(),
 			"Analog input channels from a NIDAQ device",
 			"identifier",
 
-			getSampleRate()
+			sampleRate
 
 		};
 
@@ -103,6 +106,9 @@ void NIDAQThread::updateSettings(OwnedArray<ContinuousChannel>* continuousChanne
 	else if (sourceStreams[0]->getSampleRate() != getSampleRate())
 	{
 
+		LOGC("Previous sample rate: ", sourceStreams[0]->getSampleRate());
+		LOGC("New sample rate: ", getSampleRate());
+
 		sourceStreams.clear();
 
 		DataStream::Settings settings
@@ -111,7 +117,7 @@ void NIDAQThread::updateSettings(OwnedArray<ContinuousChannel>* continuousChanne
 			"Analog input channels from a NIDAQ device",
 			"identifier",
 
-			getSampleRate()
+			sampleRate
 
 		};
 
@@ -125,6 +131,8 @@ void NIDAQThread::updateSettings(OwnedArray<ContinuousChannel>* continuousChanne
 	spikeChannels->clear();
 	devices->clear();
 	configurationObjects->clear();
+
+	LOGC("*****Active AI channels: " + String(getNumActiveAnalogInputs()));
 
 	for (int i = 0; i < sourceStreams.size(); i++)
 	{
@@ -280,12 +288,21 @@ int NIDAQThread::swapConnection(String deviceName)
 		{
 			mNIDAQ = new NIDAQmx(dev);
 
+			LOGC("Set new device: ", dev->getName());
+
+			LOGC("*****Active AI channels: " + String(getNumActiveAnalogInputs()));
+
 			sourceBuffers.removeLast();
 			sourceBuffers.add(new DataBuffer(getNumActiveAnalogInputs(), 10000));
 			mNIDAQ->aiBuffer = sourceBuffers.getLast();
 
 			deviceIndex = deviceIdx;
 			setDeviceIndex(deviceIndex);
+
+			LOGC("Got sample rate index: ", sampleRateIndex);
+
+			if (deviceIndex == 2 && sampleRateIndex == 4)
+				sampleRateIndex = 3;
 
 			sampleRateIndex = mNIDAQ->sampleRates.size() - 1;
 			setSampleRate(sampleRateIndex);
